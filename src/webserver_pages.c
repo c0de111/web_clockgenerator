@@ -8,7 +8,8 @@
 #include "build_info.h"
 
 void webserver_build_landing_page(char *buffer, size_t max_len, uint64_t frequency_hz,
-                                  uint8_t drive_ma, const char *status_message, bool is_error) {
+                                  uint8_t drive_ma, bool output_enabled,
+                                  const char *status_message, bool is_error) {
     if (!buffer || max_len == 0) {
         return;
     }
@@ -18,6 +19,9 @@ void webserver_build_landing_page(char *buffer, size_t max_len, uint64_t frequen
     const char *sel4 = (drive_ma == 4) ? " selected" : "";
     const char *sel6 = (drive_ma == 6) ? " selected" : "";
     const char *sel8 = (drive_ma == 8) ? " selected" : "";
+    const char *toggle_class = output_enabled ? "on" : "off";
+    const char *toggle_aria = output_enabled ? "true" : "false";
+    const char *toggle_text = output_enabled ? "Output ON" : "Output OFF";
 
     char status_html[256] = {0};
     if (msg) {
@@ -48,6 +52,12 @@ void webserver_build_landing_page(char *buffer, size_t max_len, uint64_t frequen
              ".card form{display:flex;flex-direction:column;gap:1.1em;margin-top:1.2em;}"
              ".card label{display:flex;flex-direction:column;font-weight:600;color:#374151;gap:0.45em;}"
              ".card input,.card select{font-size:1em;padding:0.55em 0.7em;border:1px solid #d1d5db;border-radius:8px;box-shadow:inset 0 1px 2px rgba(0,0,0,0.05);}"
+             ".adjust-row{display:flex;gap:0.6em;align-items:center;flex-wrap:wrap;}"
+             "#frequency-spinner{flex:1 1 260px;min-width:160px;}"
+             ".output-toggle{flex:0 0 auto;padding:0.55em 0.9em;border:none;border-radius:8px;font-weight:600;cursor:pointer;transition:background 0.15s ease,color 0.15s ease;}"
+             ".output-toggle.on{background:#10b981;color:#064e3b;}"
+             ".output-toggle.off{background:#f87171;color:#7f1d1d;}"
+             ".output-toggle:focus{outline:2px solid rgba(59,130,246,0.6);outline-offset:2px;}"
              ".digital{font-family:'DS-Digital','Segment7Standard','Courier New',monospace;letter-spacing:0.05em;background:#111827;color:#f9fafb;border-color:#1f2937;text-align:center;}"
              ".readout{display:flex;justify-content:center;align-items:center;font-size:1.2em;padding:0.75em;border:1px solid #1f2937;border-radius:8px;background:#111827;color:#f9fafb;box-shadow:inset 0 1px 3px rgba(0,0,0,0.25);}"
              ".step-group{display:flex;flex-wrap:wrap;gap:0.6em;}"
@@ -183,7 +193,10 @@ void webserver_build_landing_page(char *buffer, size_t max_len, uint64_t frequen
              "<div id=\"frequency-display\" class=\"readout digital\" role=\"status\" aria-live=\"polite\">%llu</div>"
              "</label>"
              "<label>Adjust"
+             "<div class=\"adjust-row\">"
              "<input type=\"number\" name=\"frequency\" id=\"frequency-spinner\" class=\"digital\" min=\"8000\" max=\"200000000\" step=\"1000\" value=\"%llu\">"
+             "<button type=\"submit\" name=\"action\" value=\"toggle-output\" class=\"output-toggle %s\" aria-pressed=\"%s\">%s</button>"
+             "</div>"
              "</label>"
              "<label>Increment"
              "<div class=\"step-group\">"
@@ -213,6 +226,9 @@ void webserver_build_landing_page(char *buffer, size_t max_len, uint64_t frequen
              status_html[0] ? status_html : default_status,
              (unsigned long long)frequency_hz,
              (unsigned long long)frequency_hz,
+             toggle_class,
+             toggle_aria,
+             toggle_text,
              sel2, sel4, sel6, sel8,
              footer_text);
 }

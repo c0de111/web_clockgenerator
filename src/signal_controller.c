@@ -7,6 +7,7 @@ static bool g_initialized = false;
 static signal_state_t g_state = {
     .frequency_hz = 1000000,
     .drive_ma = 4,
+    .output_enabled = true,
 };
 
 static enum si5351_drive map_drive(uint8_t drive_ma) {
@@ -38,6 +39,8 @@ bool signal_controller_init(void) {
         return false;
     }
     si5351_drive_strength(SI5351_CLK0, map_drive(g_state.drive_ma));
+    si5351_output_enable(SI5351_CLK0, 1);
+
     g_initialized = true;
     log_info("[SI5351] initialized (freq=%llu Hz, drive=%u mA)",
              (unsigned long long)g_state.frequency_hz, g_state.drive_ma);
@@ -76,6 +79,21 @@ bool signal_controller_set(uint64_t frequency_hz, uint8_t drive_strength_ma) {
         log_info("[USER] freq=%llu Hz, drive=%u mA",
                  (unsigned long long)frequency_hz, drive);
     }
+    return true;
+}
+
+bool signal_controller_enable_output(bool enable) {
+    if (!g_initialized && !signal_controller_init()) {
+        return false;
+    }
+
+    if (g_state.output_enabled == enable) {
+        return true;
+    }
+
+    si5351_output_enable(SI5351_CLK0, enable ? 1 : 0);
+    g_state.output_enabled = enable;
+    log_info("[USER] output=%s", enable ? "on" : "off");
     return true;
 }
 

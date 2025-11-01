@@ -153,7 +153,7 @@ static void respond_with_form(struct tcp_pcb *pcb, web_connection_t *state) {
     char page[8192];
     signal_state_t current = signal_controller_get_state();
     webserver_build_landing_page(page, sizeof(page), current.frequency_hz, current.drive_ma,
-                                 g_status_message, g_status_is_error);
+                                 current.output_enabled, g_status_message, g_status_is_error);
 
     if (webserver_send_response(pcb, page) == ERR_OK) {
         state->responded = true;
@@ -215,6 +215,29 @@ static uint64_t clamp_frequency(uint64_t freq) {
 }
 
 static void handle_form_submission(const char *body) {
+    char action_buf[32] = {0};
+    const char *action_key = strstr(body, "action=");
+    if (action_key) {
+        action_key += strlen("action=");
+        size_t i = 0;
+        while (action_key[i] && action_key[i] != '&' && i < sizeof(action_buf) - 1) {
+            action_buf[i] = action_key[i];
+            ++i;
+        }
+        action_buf[i] = '\0';
+    }
+
+    if (strcmp(action_buf, "toggle-output") == 0) {
+        signal_state_t current = signal_controller_get_state();
+        bool desired = !current.output_enabled;
+        if (signal_controller_enable_output(desired)) {
+            webserver_set_status(desired ? "Output enabled" : "Output disabled", false);
+        } else {
+            webserver_set_status("Error: failed to toggle output", true);
+        }
+        return;
+    }
+
     char freq_buf[32] = {0};
     char drive_buf[8] = {0};
 
