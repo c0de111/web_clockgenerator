@@ -1,6 +1,6 @@
 # Web clockgenerator
 
-Web control for a Si5351A via a Pico W. Connect to the access point "clockgen", pwd:"12345678" provided by the Pico. Control the Si5351 clock generator. 
+Web control for a Si5351A via a Pico W. Connect to the access point "clockgen", pwd:"12345678" provided by the Pico. Control the clock generator. 
 
 ![Clock generator web interface](web_clockgenerator.png)
 
