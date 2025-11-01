@@ -9,8 +9,7 @@
 #include "logging.h"
 #include "signal_controller.h"
 
-#define MORSE_MAX_CHARS 4
-#define MORSE_MAX_EVENTS 64
+#define MORSE_MAX_EVENTS 512
 
 typedef struct {
     bool key_on;
@@ -34,8 +33,8 @@ typedef struct {
     uint16_t gap_unit_ms;
     morse_status_t status;
     char last_text[MORSE_MAX_CHARS + 1];
-    uint8_t last_wpm;
-    int8_t last_fwpm;
+    uint16_t last_wpm;
+    int16_t last_fwpm;
     char error_msg[64];
 } morse_state_t;
 
@@ -67,7 +66,7 @@ static morse_state_t g_morse = {
     .unit_ms = 80,
     .gap_unit_ms = 80,
     .status = MORSE_STATUS_IDLE,
-    .last_text = "Hi!",
+    .last_text = "PARIS",
     .last_wpm = 15,
     .last_fwpm = -1,
     .error_msg = {0},
@@ -131,7 +130,7 @@ static bool build_events(const morse_char_entry_t *entries, uint8_t count) {
     return g_morse.event_count > 0;
 }
 
-bool morse_start(const char *text, uint8_t len, uint8_t wpm, int8_t farnsworth_wpm) {
+bool morse_start(const char *text, uint8_t len, uint16_t wpm, int16_t farnsworth_wpm) {
     if (!text) {
         return false;
     }
@@ -141,17 +140,17 @@ bool morse_start(const char *text, uint8_t len, uint8_t wpm, int8_t farnsworth_w
     }
     if (len == 0 || len > MORSE_MAX_CHARS) {
         snprintf(g_morse.error_msg, sizeof(g_morse.error_msg),
-                 "Text must be 1-4 characters");
+                 "Text must be 1-%u characters", MORSE_MAX_CHARS);
         return false;
     }
-    if (wpm < 5 || wpm > 40) {
-        snprintf(g_morse.error_msg, sizeof(g_morse.error_msg), "WPM out of range");
+    if (wpm < 1 || wpm > 1000) {
+        snprintf(g_morse.error_msg, sizeof(g_morse.error_msg), "WPM must be 1-1000");
         return false;
     }
     if (farnsworth_wpm >= 0) {
-        if (farnsworth_wpm < 5 || farnsworth_wpm > (int8_t)wpm) {
+        if (farnsworth_wpm < 1 || (uint16_t)farnsworth_wpm > wpm) {
             snprintf(g_morse.error_msg, sizeof(g_morse.error_msg),
-                     "Farnsworth must be 5-%u", wpm);
+                     "Farnsworth must be 1-%u", wpm);
             return false;
         }
     }
@@ -161,7 +160,7 @@ bool morse_start(const char *text, uint8_t len, uint8_t wpm, int8_t farnsworth_w
     size_t input_len = strnlen(text, len);
     if (input_len == 0) {
         snprintf(g_morse.error_msg, sizeof(g_morse.error_msg),
-                 "Text must be 1-4 characters");
+                 "Text must be 1-%u characters", MORSE_MAX_CHARS);
         return false;
     }
 
@@ -170,7 +169,7 @@ bool morse_start(const char *text, uint8_t len, uint8_t wpm, int8_t farnsworth_w
     g_morse.last_text[copy_len] = '\0';
 
     g_morse.last_wpm = wpm;
-    g_morse.last_fwpm = (farnsworth_wpm >= 5 && farnsworth_wpm <= (int8_t)wpm) ? farnsworth_wpm : -1;
+    g_morse.last_fwpm = (farnsworth_wpm >= 1 && (uint16_t)farnsworth_wpm <= wpm) ? farnsworth_wpm : -1;
 
     morse_char_entry_t entries[MORSE_MAX_CHARS] = {0};
     uint8_t entry_count = 0;
@@ -221,8 +220,8 @@ bool morse_start(const char *text, uint8_t len, uint8_t wpm, int8_t farnsworth_w
         g_morse.unit_ms = 1;
     }
     int8_t effective_fw = -1;
-    if (farnsworth_wpm >= 5 && farnsworth_wpm < (int8_t)wpm) {
-        g_morse.gap_unit_ms = (uint16_t)(1200u / (uint8_t)farnsworth_wpm);
+    if (farnsworth_wpm >= 1 && (uint16_t)farnsworth_wpm < wpm) {
+        g_morse.gap_unit_ms = (uint16_t)(1200u / (uint16_t)farnsworth_wpm);
         effective_fw = farnsworth_wpm;
     } else {
         g_morse.gap_unit_ms = g_morse.unit_ms;
@@ -331,7 +330,7 @@ const char *morse_last_error(void) {
     return g_morse.error_msg;
 }
 
-void morse_get_form_defaults(char *text_out, size_t text_len, uint8_t *wpm_out, int8_t *fwpm_out) {
+void morse_get_form_defaults(char *text_out, size_t text_len, uint16_t *wpm_out, int16_t *fwpm_out) {
     if (text_out && text_len > 0) {
         snprintf(text_out, text_len, "%s", g_morse.last_text);
     }

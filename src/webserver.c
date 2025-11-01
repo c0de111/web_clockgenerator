@@ -100,6 +100,9 @@ static bool extract_form_value(const char *body, const char *key, char *out, siz
 
 static char g_status_message[128] = "";
 static bool g_status_is_error = false;
+static char g_status_prev_message[128] = "";
+static bool g_status_prev_is_error = false;
+static bool g_status_prev_valid = false;
 static bool g_morse_hold_active = false;
 static bool g_morse_hold_prev_enabled = false;
 
@@ -239,9 +242,9 @@ static err_t webserver_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_
 static void respond_with_form(struct tcp_pcb *pcb, web_connection_t *state) {
     char page[16384];
     signal_state_t current = signal_controller_get_state();
-    char morse_text[8] = {0};
-    uint8_t morse_wpm = 0;
-    int8_t morse_fwpm = -1;
+    char morse_text[MORSE_MAX_CHARS + 1] = {0};
+    uint16_t morse_wpm = 0;
+    int16_t morse_fwpm = -1;
     morse_get_form_defaults(morse_text, sizeof(morse_text), &morse_wpm, &morse_fwpm);
 
     webserver_build_landing_page(page, sizeof(page), current.frequency_hz, current.drive_ma,
@@ -373,7 +376,7 @@ static void handle_form_submission(const char *body) {
 }
 
 static void handle_morse_submission(const char *body) {
-    char text_buf[16] = {0};
+    char text_buf[MORSE_MAX_CHARS * 3] = {0};
     char wpm_buf[8] = {0};
     char fwpm_buf[8] = {0};
 
@@ -386,15 +389,17 @@ static void handle_morse_submission(const char *body) {
         webserver_set_status("Error: text is required", true);
         return;
     }
-    if (text_len > 4) {
-        webserver_set_status("Error: text must be 4 characters or fewer", true);
+    if (text_len > MORSE_MAX_CHARS) {
+        char msg[64];
+        snprintf(msg, sizeof(msg), "Error: text must be %u characters or fewer", MORSE_MAX_CHARS);
+        webserver_set_status(msg, true);
         return;
     }
 
     char *end = NULL;
     long wpm_long = strtol(wpm_buf, &end, 10);
-    if (end == wpm_buf || wpm_long < 5 || wpm_long > 40) {
-        webserver_set_status("Error: WPM must be 5-40", true);
+    if (end == wpm_buf || wpm_long < 1 || wpm_long > 1000) {
+        webserver_set_status("Error: WPM must be 1-1000", true);
         return;
     }
 
@@ -402,8 +407,8 @@ static void handle_morse_submission(const char *body) {
     if (fwpm_buf[0]) {
         end = NULL;
         long fwpm_long = strtol(fwpm_buf, &end, 10);
-        if (end == fwpm_buf || fwpm_long < 5 || fwpm_long > wpm_long) {
-            webserver_set_status("Error: Farnsworth must be 5-<=WPM", true);
+        if (end == fwpm_buf || fwpm_long < 1 || fwpm_long > wpm_long) {
+            webserver_set_status("Error: Farnsworth must be 1-<=WPM", true);
             return;
         }
         farnsworth = (int)fwpm_long;
@@ -414,7 +419,7 @@ static void handle_morse_submission(const char *body) {
         return;
     }
 
-    if (!morse_start(text_buf, (uint8_t)text_len, (uint8_t)wpm_long, (int8_t)farnsworth)) {
+    if (!morse_start(text_buf, (uint8_t)text_len, (uint16_t)wpm_long, (int16_t)farnsworth)) {
         const char *err = morse_last_error();
         if (err && *err) {
             webserver_set_status(err, true);
@@ -424,14 +429,18 @@ static void handle_morse_submission(const char *body) {
         return;
     }
 
-    webserver_set_status("Morse playback started", false);
+    if (!g_morse_hold_active) {
+        webserver_set_status("Morse playback started", false);
+    }
 }
 
 static void handle_morse_stop(void) {
     if (morse_is_playing()) {
         morse_stop();
-        webserver_set_status("Stop requested", false);
-    } else {
+        if (!g_morse_hold_active) {
+            webserver_set_status("Stop requested", false);
+        }
+    } else if (!g_morse_hold_active) {
         webserver_set_status("Morse playback idle", false);
     }
 }
@@ -448,14 +457,28 @@ static void handle_morse_hold(const char *body) {
             if (state.output_enabled) {
                 signal_controller_enable_output(false);
             }
+            if (g_status_message[0]) {
+                snprintf(g_status_prev_message, sizeof(g_status_prev_message), "%s", g_status_message);
+                g_status_prev_is_error = g_status_is_error;
+                g_status_prev_valid = true;
+            } else {
+                g_status_prev_valid = false;
+            }
         }
         g_morse_hold_active = true;
+        webserver_set_status("Morse mode", false);
     } else {
         if (g_morse_hold_active && g_morse_hold_prev_enabled) {
             signal_controller_enable_output(true);
         }
         g_morse_hold_active = false;
         g_morse_hold_prev_enabled = false;
+        if (g_status_prev_valid) {
+            webserver_set_status(g_status_prev_message, g_status_prev_is_error);
+        } else {
+            webserver_set_status(NULL, false);
+        }
+        g_status_prev_valid = false;
     }
 }
 

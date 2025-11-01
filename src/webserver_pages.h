@@ -8,7 +8,7 @@
 void webserver_build_landing_page(char *buffer, size_t max_len, uint64_t frequency_hz,
                                   uint8_t drive_ma, bool output_enabled,
                                   const char *status_message, bool is_error,
-                                  const char *morse_text, uint8_t morse_wpm, int8_t morse_fwpm,
+                                  const char *morse_text, uint16_t morse_wpm, int16_t morse_fwpm,
                                   bool morse_playing, const char *morse_status,
                                   bool morse_hold_active);
 

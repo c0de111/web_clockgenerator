@@ -43,7 +43,7 @@ static void html_escape(const char *src, char *dst, size_t dst_len) {
 void webserver_build_landing_page(char *buffer, size_t max_len, uint64_t frequency_hz,
                                   uint8_t drive_ma, bool output_enabled,
                                   const char *status_message, bool is_error,
-                                  const char *morse_text, uint8_t morse_wpm, int8_t morse_fwpm,
+                                  const char *morse_text, uint16_t morse_wpm, int16_t morse_fwpm,
                                   bool morse_playing, const char *morse_status,
                                   bool morse_hold_active) {
     if (!buffer || max_len == 0) {
@@ -75,7 +75,7 @@ void webserver_build_landing_page(char *buffer, size_t max_len, uint64_t frequen
     char morse_status_html[32] = {0};
     html_escape(morse_status_text, morse_status_html, sizeof(morse_status_html));
 
-    if (morse_wpm < 5 || morse_wpm > 40) {
+    if (morse_wpm < 1 || morse_wpm > 1000) {
         morse_wpm = 15;
     }
 
@@ -126,7 +126,9 @@ void webserver_build_landing_page(char *buffer, size_t max_len, uint64_t frequen
              ".morse-details[open]{background:#fff;box-shadow:0 10px 24px rgba(15,23,42,0.12);}"
              ".morse-details summary{font-weight:700;font-size:1.05em;color:#1f2937;cursor:pointer;outline:none;}"
              ".morse-panel{margin-top:1em;display:flex;flex-direction:column;gap:1em;}"
-             ".morse-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0.8em;}"
+             ".morse-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:0.8em;}"
+             ".morse-range{display:flex;gap:0.6em;align-items:flex-start;}"
+             ".morse-range label{flex:1 1 0;}"
              ".morse-form label{display:flex;flex-direction:column;font-weight:600;color:#374151;gap:0.35em;}"
              ".morse-form input{font-size:1em;padding:0.55em 0.7em;border:1px solid #d1d5db;border-radius:8px;box-shadow:inset 0 1px 2px rgba(0,0,0,0.05);}"
              ".morse-actions{display:flex;gap:0.7em;flex-wrap:wrap;}"
@@ -293,6 +295,7 @@ void webserver_build_landing_page(char *buffer, size_t max_len, uint64_t frequen
              "      if(morseStop){morseStop.disabled=!playing;}"
              "      if(outputToggle){outputToggle.disabled=holdActive;}"
              "      if(morseDetails && (playing || holdActive) && !morseDetails.open){morseDetails.open=true;}"
+             "      if(morseDetails && morseDetails.open){try{morseDetails.scrollIntoView({behavior:'auto',block:'start'});}catch(e){}}"
              "    };"
              "    applyMorseStatus({playing:morseStatus.getAttribute('data-playing')==='true',status:morseStatusText.textContent,hold:morseStatus.getAttribute('data-hold')==='true'});"
              "    const pollMorse=function(){"
@@ -348,14 +351,16 @@ void webserver_build_landing_page(char *buffer, size_t max_len, uint64_t frequen
              "<div id=\"morse-status\" class=\"morse-status %s\" data-playing=\"%s\" data-hold=\"%s\">Status: <span id=\"morse-status-text\">%s</span></div>"
              "<form class=\"morse-form\" method=\"POST\" action=\"/morse\">"
              "<label>Text"
-             "<input type=\"text\" name=\"text\" maxlength=\"4\" value=\"%s\" required>"
+             "<input type=\"text\" name=\"text\" maxlength=\"20\" value=\"%s\" required>"
              "</label>"
+             "<div class=\"morse-range\">"
              "<label>WPM"
-             "<input type=\"number\" name=\"wpm\" min=\"5\" max=\"40\" value=\"%u\" required>"
+             "<input type=\"number\" name=\"wpm\" min=\"1\" max=\"1000\" value=\"%u\" required>"
              "</label>"
              "<label>Farnsworth WPM"
-             "<input type=\"number\" name=\"fwpm\" min=\"5\" max=\"40\" value=\"%s\" placeholder=\"optional\">"
+             "<input type=\"number\" name=\"fwpm\" min=\"1\" max=\"1000\" value=\"%s\" placeholder=\"optional\">"
              "</label>"
+             "</div>"
              "<div class=\"morse-actions\">"
              "<button type=\"submit\" class=\"morse-play\" id=\"morse-play\"%s>Play</button>"
              "</div>"

@@ -5,9 +5,9 @@
 
 static bool g_initialized = false;
 static signal_state_t g_state = {
-    .frequency_hz = 1000000,
+    .frequency_hz = 1008000,
     .drive_ma = 4,
-    .output_enabled = true,
+    .output_enabled = false,
 };
 
 static enum si5351_drive map_drive(uint8_t drive_ma) {
@@ -39,7 +39,7 @@ bool signal_controller_init(void) {
         return false;
     }
     si5351_drive_strength(SI5351_CLK0, map_drive(g_state.drive_ma));
-    si5351_output_enable(SI5351_CLK0, 1);
+    si5351_output_enable(SI5351_CLK0, 0);
 
     g_initialized = true;
     log_info("[SI5351] initialized (freq=%llu Hz, drive=%u mA)",

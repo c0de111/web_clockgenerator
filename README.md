@@ -21,7 +21,7 @@ Web control for a Si5351A via a Pico W. Connect to the access point "clockgen", 
    ./create_uf2.sh build/web_clockgen.uf2
    ```
 
-The firmware exposes a web control page for the Si5351A and logs activity on the USB CDC console.
+The firmware exposes a web control page for the Si5351A and logs activity on the USB CDC console. CLK0 output starts disabled after boot; enable it from the web UI when you are ready to transmit.
 
 ```
 [20:45:31.507] Connected to /dev/ttyACM5
