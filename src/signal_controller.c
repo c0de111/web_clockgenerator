@@ -87,14 +87,27 @@ bool signal_controller_enable_output(bool enable) {
         return false;
     }
 
-    if (g_state.output_enabled == enable) {
-        return true;
-    }
-
     si5351_output_enable(SI5351_CLK0, enable ? 1 : 0);
-    g_state.output_enabled = enable;
-    log_info("[USER] output=%s", enable ? "on" : "off");
+    if (g_state.output_enabled != enable) {
+        g_state.output_enabled = enable;
+        log_info("[USER] output=%s", enable ? "on" : "off");
+    }
     return true;
+}
+
+bool signal_controller_key(bool on) {
+    if (!g_initialized) {
+        return false;
+    }
+    si5351_output_enable(SI5351_CLK0, on ? 1 : 0);
+    return true;
+}
+
+void signal_controller_restore_output(void) {
+    if (!g_initialized) {
+        return;
+    }
+    si5351_output_enable(SI5351_CLK0, g_state.output_enabled ? 1 : 0);
 }
 
 signal_state_t signal_controller_get_state(void) {

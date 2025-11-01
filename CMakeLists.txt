@@ -47,6 +47,8 @@ add_executable(web_clockgen
     src/debug.h
     src/signal_controller.c
     src/signal_controller.h
+    src/morse_player.c
+    src/morse_player.h
     third_party/si5351/si5351.c
     third_party/si5351/si5351.h
 )

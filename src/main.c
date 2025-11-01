@@ -14,6 +14,7 @@
 #include "logging.h"
 #include "webserver.h"
 #include "signal_controller.h"
+#include "morse_player.h"
 
 static void start_dhcp_server(void);
 static void dhcp_recv_cb(void *arg, struct udp_pcb *pcb, struct pbuf *p,
@@ -123,7 +124,8 @@ int main(void) {
 
     while (true) {
         cyw43_arch_poll();
-        sleep_ms(50);
+        morse_tick();
+        sleep_ms(5);
     }
 }
 

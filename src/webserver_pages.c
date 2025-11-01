@@ -7,9 +7,45 @@
 
 #include "build_info.h"
 
+static void html_escape(const char *src, char *dst, size_t dst_len) {
+    if (!dst || dst_len == 0) {
+        return;
+    }
+    size_t out_idx = 0;
+    if (!src) {
+        dst[0] = '\0';
+        return;
+    }
+    while (*src && out_idx < dst_len - 1) {
+        const char *replacement = NULL;
+        switch (*src) {
+            case '&': replacement = "&amp;"; break;
+            case '<': replacement = "&lt;"; break;
+            case '>': replacement = "&gt;"; break;
+            case '"': replacement = "&quot;"; break;
+            default: break;
+        }
+        if (replacement) {
+            size_t rep_len = strlen(replacement);
+            if (out_idx + rep_len >= dst_len) {
+                break;
+            }
+            memcpy(dst + out_idx, replacement, rep_len);
+            out_idx += rep_len;
+        } else {
+            dst[out_idx++] = *src;
+        }
+        ++src;
+    }
+    dst[out_idx] = '\0';
+}
+
 void webserver_build_landing_page(char *buffer, size_t max_len, uint64_t frequency_hz,
                                   uint8_t drive_ma, bool output_enabled,
-                                  const char *status_message, bool is_error) {
+                                  const char *status_message, bool is_error,
+                                  const char *morse_text, uint8_t morse_wpm, int8_t morse_fwpm,
+                                  bool morse_playing, const char *morse_status,
+                                  bool morse_hold_active) {
     if (!buffer || max_len == 0) {
         return;
     }
@@ -22,6 +58,33 @@ void webserver_build_landing_page(char *buffer, size_t max_len, uint64_t frequen
     const char *toggle_class = output_enabled ? "on" : "off";
     const char *toggle_aria = output_enabled ? "true" : "false";
     const char *toggle_text = output_enabled ? "Output ON" : "Output OFF";
+    const char *morse_text_display = (morse_text && *morse_text) ? morse_text : "Hi!";
+    const char *morse_status_text = (morse_status && *morse_status) ? morse_status : "Idle";
+    const char *details_open = (morse_playing || morse_hold_active) ? " open" : "";
+    const char *morse_status_class = morse_playing ? "playing" :
+                                      (strcmp(morse_status_text, "Stopped") == 0 ? "stopped" : "idle");
+    const char *play_disabled = morse_playing ? " disabled" : "";
+    const char *stop_disabled = morse_playing ? "" : " disabled";
+    const char *playing_attr = morse_playing ? "true" : "false";
+    const char *hold_attr = morse_hold_active ? "true" : "false";
+    const char *output_toggle_disabled = morse_hold_active ? " disabled" : "";
+
+    char morse_text_html[32] = {0};
+    html_escape(morse_text_display, morse_text_html, sizeof(morse_text_html));
+
+    char morse_status_html[32] = {0};
+    html_escape(morse_status_text, morse_status_html, sizeof(morse_status_html));
+
+    if (morse_wpm < 5 || morse_wpm > 40) {
+        morse_wpm = 15;
+    }
+
+    char fwpm_value[8] = {0};
+    if (morse_fwpm > 0) {
+        snprintf(fwpm_value, sizeof(fwpm_value), "%d", morse_fwpm);
+    } else {
+        fwpm_value[0] = '\0';
+    }
 
     char status_html[256] = {0};
     if (msg) {
@@ -58,6 +121,25 @@ void webserver_build_landing_page(char *buffer, size_t max_len, uint64_t frequen
              ".output-toggle.on{background:#10b981;color:#064e3b;}"
              ".output-toggle.off{background:#f87171;color:#7f1d1d;}"
              ".output-toggle:focus{outline:2px solid rgba(59,130,246,0.6);outline-offset:2px;}"
+             ".output-toggle:disabled{opacity:0.6;cursor:not-allowed;}"
+             ".morse-details{margin-top:1.8em;border:1px solid #e5e7eb;border-radius:12px;padding:1.1em 1.2em;background:#f9fafb;transition:box-shadow 0.2s ease,background 0.2s ease;}"
+             ".morse-details[open]{background:#fff;box-shadow:0 10px 24px rgba(15,23,42,0.12);}"
+             ".morse-details summary{font-weight:700;font-size:1.05em;color:#1f2937;cursor:pointer;outline:none;}"
+             ".morse-panel{margin-top:1em;display:flex;flex-direction:column;gap:1em;}"
+             ".morse-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0.8em;}"
+             ".morse-form label{display:flex;flex-direction:column;font-weight:600;color:#374151;gap:0.35em;}"
+             ".morse-form input{font-size:1em;padding:0.55em 0.7em;border:1px solid #d1d5db;border-radius:8px;box-shadow:inset 0 1px 2px rgba(0,0,0,0.05);}"
+             ".morse-actions{display:flex;gap:0.7em;flex-wrap:wrap;}"
+             ".morse-stop-form{margin:0;}"
+             ".morse-play,.morse-stop{padding:0.6em 1.1em;border:none;border-radius:8px;font-weight:600;cursor:pointer;transition:background 0.15s ease,color 0.15s ease,opacity 0.15s ease;}"
+             ".morse-play{background:#2563eb;color:#f9fafb;}"
+             ".morse-stop{background:#ef4444;color:#fff;}"
+             ".morse-play:disabled{opacity:0.6;cursor:not-allowed;}"
+             ".morse-stop:disabled{opacity:0.5;cursor:not-allowed;}"
+             ".morse-status{font-weight:600;}"
+             ".morse-status.playing span{color:#047857;}"
+             ".morse-status.stopped span{color:#92400e;}"
+             ".morse-status.idle span{color:#374151;}"
              ".digital{font-family:'DS-Digital','Segment7Standard','Courier New',monospace;letter-spacing:0.05em;background:#111827;color:#f9fafb;border-color:#1f2937;text-align:center;}"
              ".readout{display:flex;justify-content:center;align-items:center;font-size:1.2em;padding:0.75em;border:1px solid #1f2937;border-radius:8px;background:#111827;color:#f9fafb;box-shadow:inset 0 1px 3px rgba(0,0,0,0.25);}"
              ".step-group{display:flex;flex-wrap:wrap;gap:0.6em;}"
@@ -181,6 +263,47 @@ void webserver_build_landing_page(char *buffer, size_t max_len, uint64_t frequen
              "      });"
              "    });"
              "  }"
+             "  const morseStatus=document.getElementById('morse-status');"
+             "  const morseStatusText=document.getElementById('morse-status-text');"
+             "  const morsePlay=document.getElementById('morse-play');"
+             "  const morseStop=document.getElementById('morse-stop');"
+             "  const morseDetails=document.getElementById('morse-details');"
+             "  const outputToggle=document.getElementById('output-toggle');"
+             "  if(outputToggle && morseStatus && morseStatus.getAttribute('data-hold')==='true'){outputToggle.disabled=true;}"
+             "  if(morseDetails && typeof fetch==='function'){"
+             "    morseDetails.addEventListener('toggle',function(){"
+             "      const open=morseDetails.open;"
+             "      if(outputToggle){outputToggle.disabled=open;}"
+             "      const body='active='+(open?'1':'0');"
+             "      fetch('/morse/hold',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body}).catch(function(){});"
+             "    });"
+             "  }"
+             "  if(morseStatus && morseStatusText && typeof fetch==='function'){"
+             "    const applyMorseStatus=function(data){"
+             "      const statusText=(data && typeof data.status==='string')?data.status:'Idle';"
+             "      const playing=!!(data && data.playing);"
+             "      const holdActive=!!(data && data.hold);"
+             "      morseStatusText.textContent=statusText;"
+             "      morseStatus.classList.remove('playing','stopped','idle');"
+             "      const className=playing?'playing':(statusText==='Stopped'?'stopped':'idle');"
+             "      morseStatus.classList.add(className);"
+             "      morseStatus.setAttribute('data-playing', playing?'true':'false');"
+             "      morseStatus.setAttribute('data-hold', holdActive?'true':'false');"
+             "      if(morsePlay){morsePlay.disabled=playing;}"
+             "      if(morseStop){morseStop.disabled=!playing;}"
+             "      if(outputToggle){outputToggle.disabled=holdActive;}"
+             "      if(morseDetails && (playing || holdActive) && !morseDetails.open){morseDetails.open=true;}"
+             "    };"
+             "    applyMorseStatus({playing:morseStatus.getAttribute('data-playing')==='true',status:morseStatusText.textContent,hold:morseStatus.getAttribute('data-hold')==='true'});"
+             "    const pollMorse=function(){"
+             "      fetch('/morse/status',{cache:'no-store'}).then(function(resp){"
+             "        if(!resp.ok) throw new Error('status');"
+             "        return resp.json();"
+             "      }).then(function(data){applyMorseStatus(data);}).catch(function(){});"
+             "    };"
+             "    pollMorse();"
+             "    setInterval(pollMorse,1000);"
+             "  }"
              "});"
              "</script>"
              "</head>"
@@ -195,7 +318,7 @@ void webserver_build_landing_page(char *buffer, size_t max_len, uint64_t frequen
              "<label>Adjust"
              "<div class=\"adjust-row\">"
              "<input type=\"number\" name=\"frequency\" id=\"frequency-spinner\" class=\"digital\" min=\"8000\" max=\"200000000\" step=\"1000\" value=\"%llu\">"
-             "<button type=\"submit\" name=\"action\" value=\"toggle-output\" class=\"output-toggle %s\" aria-pressed=\"%s\">%s</button>"
+             "<button type=\"submit\" name=\"action\" value=\"toggle-output\" id=\"output-toggle\" class=\"output-toggle %s\" aria-pressed=\"%s\"%s>%s</button>"
              "</div>"
              "</label>"
              "<label>Increment"
@@ -219,6 +342,29 @@ void webserver_build_landing_page(char *buffer, size_t max_len, uint64_t frequen
              "</select>"
              "</label>"
              "</form>"
+             "<details class=\"morse-details\"%s id=\"morse-details\">"
+             "<summary>Morse Playback</summary>"
+             "<div class=\"morse-panel\">"
+             "<div id=\"morse-status\" class=\"morse-status %s\" data-playing=\"%s\" data-hold=\"%s\">Status: <span id=\"morse-status-text\">%s</span></div>"
+             "<form class=\"morse-form\" method=\"POST\" action=\"/morse\">"
+             "<label>Text"
+             "<input type=\"text\" name=\"text\" maxlength=\"4\" value=\"%s\" required>"
+             "</label>"
+             "<label>WPM"
+             "<input type=\"number\" name=\"wpm\" min=\"5\" max=\"40\" value=\"%u\" required>"
+             "</label>"
+             "<label>Farnsworth WPM"
+             "<input type=\"number\" name=\"fwpm\" min=\"5\" max=\"40\" value=\"%s\" placeholder=\"optional\">"
+             "</label>"
+             "<div class=\"morse-actions\">"
+             "<button type=\"submit\" class=\"morse-play\" id=\"morse-play\"%s>Play</button>"
+             "</div>"
+             "</form>"
+             "<form method=\"POST\" action=\"/morse/stop\" class=\"morse-stop-form\">"
+             "<button type=\"submit\" class=\"morse-stop\" id=\"morse-stop\"%s>Stop</button>"
+             "</form>"
+             "</div>"
+             "</details>"
              "<div class=\"footer\">%s</div>"
              "</div></div>"
              "</body>"
@@ -228,7 +374,18 @@ void webserver_build_landing_page(char *buffer, size_t max_len, uint64_t frequen
              (unsigned long long)frequency_hz,
              toggle_class,
              toggle_aria,
+             output_toggle_disabled,
              toggle_text,
              sel2, sel4, sel6, sel8,
+             details_open,
+             morse_status_class,
+             playing_attr,
+             hold_attr,
+             morse_status_html,
+             morse_text_html,
+             (unsigned)morse_wpm,
+             fwpm_value,
+             play_disabled,
+             stop_disabled,
              footer_text);
 }

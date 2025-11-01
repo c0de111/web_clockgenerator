@@ -6,11 +6,13 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <math.h>
+#include <ctype.h>
 
 #include "logging.h"
 #include "webserver_pages.h"
 #include "webserver_utils.h"
 #include "signal_controller.h"
+#include "morse_player.h"
 
 #include "lwip/tcp.h"
 
@@ -25,9 +27,15 @@ static err_t webserver_sent(void *arg, struct tcp_pcb *pcb, u16_t len);
 static void webserver_close(struct tcp_pcb *pcb, web_connection_t *state);
 static void respond_with_form(struct tcp_pcb *pcb, web_connection_t *state);
 static void handle_form_submission(const char *body);
+static void handle_morse_submission(const char *body);
+static void handle_morse_stop(void);
+static void handle_morse_hold(const char *body);
+static void respond_morse_status(struct tcp_pcb *pcb, web_connection_t *state);
 static uint64_t clamp_frequency(uint64_t freq);
 static bool parse_uint64(const char *value, uint64_t *out);
 static bool parse_double(const char *value, double *out);
+static bool extract_form_value(const char *body, const char *key, char *out, size_t out_len);
+static int hex_digit_value(char c);
 static void format_step_text(double step, char *buf, size_t len) {
     double rounded = round(step);
     if (fabs(step - rounded) < 1e-6) {
@@ -44,8 +52,56 @@ static void format_step_text(double step, char *buf, size_t len) {
     }
 }
 
+static int hex_digit_value(char c) {
+    if (c >= '0' && c <= '9') {
+        return c - '0';
+    }
+    if (c >= 'a' && c <= 'f') {
+        return 10 + (c - 'a');
+    }
+    if (c >= 'A' && c <= 'F') {
+        return 10 + (c - 'A');
+    }
+    return -1;
+}
+
+static bool extract_form_value(const char *body, const char *key, char *out, size_t out_len) {
+    if (!body || !key || !out || out_len == 0) {
+        return false;
+    }
+
+    const char *key_pos = strstr(body, key);
+    if (!key_pos) {
+        out[0] = '\0';
+        return false;
+    }
+
+    key_pos += strlen(key);
+    size_t idx = 0;
+
+    while (*key_pos && *key_pos != '&' && idx < out_len - 1) {
+        char c = *key_pos++;
+        if (c == '+') {
+            c = ' ';
+        } else if (c == '%' && key_pos[0] && key_pos[1]) {
+            int hi = hex_digit_value(key_pos[0]);
+            int lo = hex_digit_value(key_pos[1]);
+            if (hi >= 0 && lo >= 0) {
+                c = (char)((hi << 4) | lo);
+                key_pos += 2;
+            }
+        }
+        out[idx++] = c;
+    }
+
+    out[idx] = '\0';
+    return true;
+}
+
 static char g_status_message[128] = "";
 static bool g_status_is_error = false;
+static bool g_morse_hold_active = false;
+static bool g_morse_hold_prev_enabled = false;
 
 void webserver_init(void) {
     struct tcp_pcb *pcb = tcp_new_ip_type(IPADDR_TYPE_V4);
@@ -130,14 +186,45 @@ static err_t webserver_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_
     pbuf_free(p);
 
     if (!state->responded) {
-        if (strncmp(request, "POST ", 5) == 0) {
+        if (strncmp(request, "GET ", 4) == 0) {
+            const char *path_start = request + 4;
+            const char *path_end = strchr(path_start, ' ');
+            if (path_end) {
+                size_t path_len = (size_t)(path_end - path_start);
+                if (path_len == strlen("/morse/status") &&
+                    strncmp(path_start, "/morse/status", path_len) == 0) {
+                    respond_morse_status(pcb, state);
+                    return ERR_OK;
+                }
+            }
+        } else if (strncmp(request, "POST ", 5) == 0) {
             const char *path_start = request + 5;
             const char *path_end = strchr(path_start, ' ');
-            if (path_end && strncmp(path_start, "/signal", (size_t)(path_end - path_start)) == 0) {
+            if (path_end) {
+                size_t path_len = (size_t)(path_end - path_start);
                 const char *body = strstr(request, "\r\n\r\n");
                 if (body) {
                     body += 4;
-                    handle_form_submission(body);
+                }
+
+                if (path_len == strlen("/signal") &&
+                    strncmp(path_start, "/signal", path_len) == 0) {
+                    if (body) {
+                        handle_form_submission(body);
+                    }
+                } else if (path_len == strlen("/morse") &&
+                           strncmp(path_start, "/morse", path_len) == 0) {
+                    if (body) {
+                        handle_morse_submission(body);
+                    }
+                } else if (path_len == strlen("/morse/stop") &&
+                           strncmp(path_start, "/morse/stop", path_len) == 0) {
+                    handle_morse_stop();
+                } else if (path_len == strlen("/morse/hold") &&
+                           strncmp(path_start, "/morse/hold", path_len) == 0) {
+                    if (body) {
+                        handle_morse_hold(body);
+                    }
                 }
             }
         }
@@ -150,10 +237,17 @@ static err_t webserver_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_
 }
 
 static void respond_with_form(struct tcp_pcb *pcb, web_connection_t *state) {
-    char page[8192];
+    char page[16384];
     signal_state_t current = signal_controller_get_state();
+    char morse_text[8] = {0};
+    uint8_t morse_wpm = 0;
+    int8_t morse_fwpm = -1;
+    morse_get_form_defaults(morse_text, sizeof(morse_text), &morse_wpm, &morse_fwpm);
+
     webserver_build_landing_page(page, sizeof(page), current.frequency_hz, current.drive_ma,
-                                 current.output_enabled, g_status_message, g_status_is_error);
+                                 current.output_enabled, g_status_message, g_status_is_error,
+                                 morse_text, morse_wpm, morse_fwpm,
+                                 morse_is_playing(), morse_status_text(), g_morse_hold_active);
 
     if (webserver_send_response(pcb, page) == ERR_OK) {
         state->responded = true;
@@ -216,18 +310,13 @@ static uint64_t clamp_frequency(uint64_t freq) {
 
 static void handle_form_submission(const char *body) {
     char action_buf[32] = {0};
-    const char *action_key = strstr(body, "action=");
-    if (action_key) {
-        action_key += strlen("action=");
-        size_t i = 0;
-        while (action_key[i] && action_key[i] != '&' && i < sizeof(action_buf) - 1) {
-            action_buf[i] = action_key[i];
-            ++i;
-        }
-        action_buf[i] = '\0';
-    }
+    extract_form_value(body, "action=", action_buf, sizeof(action_buf));
 
     if (strcmp(action_buf, "toggle-output") == 0) {
+        if (g_morse_hold_active) {
+            webserver_set_status("Output locked for Morse", true);
+            return;
+        }
         signal_state_t current = signal_controller_get_state();
         bool desired = !current.output_enabled;
         if (signal_controller_enable_output(desired)) {
@@ -241,35 +330,16 @@ static void handle_form_submission(const char *body) {
     char freq_buf[32] = {0};
     char drive_buf[8] = {0};
 
-    const char *freq_key = strstr(body, "frequency=");
-    if (freq_key) {
-        freq_key += strlen("frequency=");
-        size_t i = 0;
-        while (freq_key[i] && freq_key[i] != '&' && i < sizeof(freq_buf) - 1) {
-            freq_buf[i] = freq_key[i];
-            ++i;
-        }
-        freq_buf[i] = '\0';
-    }
-
-    const char *drive_key = strstr(body, "drive=");
-    if (drive_key) {
-        drive_key += strlen("drive=");
-        size_t i = 0;
-        while (drive_key[i] && drive_key[i] != '&' && i < sizeof(drive_buf) - 1) {
-            drive_buf[i] = drive_key[i];
-            ++i;
-        }
-        drive_buf[i] = '\0';
-    }
+    bool freq_found = extract_form_value(body, "frequency=", freq_buf, sizeof(freq_buf));
+    bool drive_found = extract_form_value(body, "drive=", drive_buf, sizeof(drive_buf));
 
     signal_state_t previous = signal_controller_get_state();
 
     uint64_t freq = 0;
     uint64_t drive_val = 0;
 
-    bool freq_ok = parse_uint64(freq_buf, &freq);
-    bool drive_ok = parse_uint64(drive_buf, &drive_val);
+    bool freq_ok = freq_found && parse_uint64(freq_buf, &freq);
+    bool drive_ok = drive_found && parse_uint64(drive_buf, &drive_val);
 
     if (!freq_ok || !drive_ok) {
         webserver_set_status("Error: invalid form data", true);
@@ -300,4 +370,142 @@ static void handle_form_submission(const char *body) {
         strcpy(status, "No parameter change");
     }
     webserver_set_status(status, false);
+}
+
+static void handle_morse_submission(const char *body) {
+    char text_buf[16] = {0};
+    char wpm_buf[8] = {0};
+    char fwpm_buf[8] = {0};
+
+    extract_form_value(body, "text=", text_buf, sizeof(text_buf));
+    extract_form_value(body, "wpm=", wpm_buf, sizeof(wpm_buf));
+    extract_form_value(body, "fwpm=", fwpm_buf, sizeof(fwpm_buf));
+
+    size_t text_len = strlen(text_buf);
+    if (text_len == 0) {
+        webserver_set_status("Error: text is required", true);
+        return;
+    }
+    if (text_len > 4) {
+        webserver_set_status("Error: text must be 4 characters or fewer", true);
+        return;
+    }
+
+    char *end = NULL;
+    long wpm_long = strtol(wpm_buf, &end, 10);
+    if (end == wpm_buf || wpm_long < 5 || wpm_long > 40) {
+        webserver_set_status("Error: WPM must be 5-40", true);
+        return;
+    }
+
+    int farnsworth = -1;
+    if (fwpm_buf[0]) {
+        end = NULL;
+        long fwpm_long = strtol(fwpm_buf, &end, 10);
+        if (end == fwpm_buf || fwpm_long < 5 || fwpm_long > wpm_long) {
+            webserver_set_status("Error: Farnsworth must be 5-<=WPM", true);
+            return;
+        }
+        farnsworth = (int)fwpm_long;
+    }
+
+    if (morse_is_playing()) {
+        webserver_set_status("Morse playback busy", true);
+        return;
+    }
+
+    if (!morse_start(text_buf, (uint8_t)text_len, (uint8_t)wpm_long, (int8_t)farnsworth)) {
+        const char *err = morse_last_error();
+        if (err && *err) {
+            webserver_set_status(err, true);
+        } else {
+            webserver_set_status("Error: failed to start Morse playback", true);
+        }
+        return;
+    }
+
+    webserver_set_status("Morse playback started", false);
+}
+
+static void handle_morse_stop(void) {
+    if (morse_is_playing()) {
+        morse_stop();
+        webserver_set_status("Stop requested", false);
+    } else {
+        webserver_set_status("Morse playback idle", false);
+    }
+}
+
+static void handle_morse_hold(const char *body) {
+    char active_buf[8] = {0};
+    extract_form_value(body, "active=", active_buf, sizeof(active_buf));
+    bool activate = (active_buf[0] == '1' || active_buf[0] == 't' || active_buf[0] == 'T');
+
+    if (activate) {
+        if (!g_morse_hold_active) {
+            signal_state_t state = signal_controller_get_state();
+            g_morse_hold_prev_enabled = state.output_enabled;
+            if (state.output_enabled) {
+                signal_controller_enable_output(false);
+            }
+        }
+        g_morse_hold_active = true;
+    } else {
+        if (g_morse_hold_active && g_morse_hold_prev_enabled) {
+            signal_controller_enable_output(true);
+        }
+        g_morse_hold_active = false;
+        g_morse_hold_prev_enabled = false;
+    }
+}
+
+static void respond_morse_status(struct tcp_pcb *pcb, web_connection_t *state) {
+    if (!pcb) {
+        if (state) {
+            free(state);
+        }
+        return;
+    }
+
+    bool playing = morse_is_playing();
+    const char *status = morse_status_text();
+    if (!status || !*status) {
+        status = "Idle";
+    }
+
+    signal_state_t sig_state = signal_controller_get_state();
+
+    char body[192];
+    int body_len = snprintf(body, sizeof(body),
+                            "{\"playing\":%s,\"status\":\"%s\",\"hold\":%s,\"output_enabled\":%s}",
+                            playing ? "true" : "false",
+                            status,
+                            g_morse_hold_active ? "true" : "false",
+                            sig_state.output_enabled ? "true" : "false");
+    if (body_len < 0 || body_len >= (int)sizeof(body)) {
+        const char fallback[] = "{\"playing\":false,\"status\":\"Idle\",\"hold\":false,\"output_enabled\":false}";
+        memcpy(body, fallback, sizeof(fallback));
+        body_len = (int)sizeof(fallback) - 1;
+    }
+
+    char header[256];
+    int header_len = snprintf(header, sizeof(header),
+                              "HTTP/1.1 200 OK\r\n"
+                              "Content-Type: application/json; charset=utf-8\r\n"
+                              "Cache-Control: no-store\r\n"
+                              "Content-Length: %d\r\n"
+                              "Connection: close\r\n\r\n",
+                              body_len);
+
+    if (header_len > 0 && header_len < (int)sizeof(header)) {
+        err_t err = tcp_write(pcb, header, (u16_t)header_len, TCP_WRITE_FLAG_COPY);
+        if (err == ERR_OK) {
+            err = tcp_write(pcb, body, (u16_t)body_len, TCP_WRITE_FLAG_COPY);
+            if (err == ERR_OK) {
+                tcp_output(pcb);
+            }
+        }
+    }
+
+    webserver_close(pcb, state);
 }
