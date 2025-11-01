@@ -43,7 +43,7 @@ references [etherkit/Si5351Arduino](https://github.com/etherkit/Si5351Arduino).
 ## Hardware
 
 - Raspberry Pi Pico W (3.3 V logic).
-- Si5351A breakout (e.g. Adafruit, SparkFun) wired as:
+  - Si5351A breakout (e.g. Adafruit, SparkFun) wired as:
   - Pico GP12 → Si5351 SDA
   - Pico GP13 → Si5351 SCL
   - Pico 3V3 → Si5351 VCC / VIN
@@ -51,3 +51,7 @@ references [etherkit/Si5351Arduino](https://github.com/etherkit/Si5351Arduino).
   - (optional) Tie Si5351 EN/OE high to 3.3 V.
 
 The firmware programs CLK0 of the Si5351; route that output wherever you need the clock signal.
+
+## Enclosure
+
+Printable enclosure files live in `enclosure/`. The FreeCAD source (`web_signalgenerator.FCStd`) and STL exports for the body, lid, and button support a simple desktop case for the Pico W + Si5351A build.
