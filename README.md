@@ -2,7 +2,11 @@
 
 Web firmware for the Si5351A clock generator on a Raspberry Pi Pico W, featuring a browser UI and Morse playback.
 
-![Clock generator web interface](images/web_clockgenerator_interface.png)
+<p align="center">
+  <img src="images/web_clockgenerator_interface.png" alt="Clock generator web interface" width="300">
+  <img src="images/web_clockgenerator.JPG" alt="Clock generator assembled" width="300">
+  <img src="images/web_clockgenerator_open.JPG" alt="Clock generator wiring (just four jumpers)" width="300">
+</p>
 
 ## Features
 - Configure CLK0 frequency and drive strength from the web page, with output enable/disable.
@@ -23,7 +27,7 @@ Web firmware for the Si5351A clock generator on a Raspberry Pi Pico W, featuring
 
 ## Hardware
 - Raspberry Pi Pico W
-- Si5351A breakout (SDA GP12, SCL GP13, 3V3 power, shared ground)
+- Si5351A breakout with only four jumpers: SDA→GP12, SCL→GP13, VCC→3V3, GND→GND
 - Optional printed enclosure parts in `enclosure/`
 
 Si5351 driver adapted from [kholia/Si5351-Pi-Pico](https://github.com/kholia/Si5351-Pi-Pico) and [etherkit/Si5351Arduino](https://github.com/etherkit/Si5351Arduino).
