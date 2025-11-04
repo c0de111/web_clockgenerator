@@ -1,61 +1,29 @@
 # Web clockgenerator
 
-Web control for a Si5351A via a Pico W. Connect to the access point "clockgen", pwd:"12345678" provided by the Pico. Control the clock generator. 
+Web firmware for the Si5351A clock generator on a Raspberry Pi Pico W, featuring a browser UI and Morse playback.
 
-![Clock generator web interface](web_clockgenerator.png)
+![Clock generator web interface](images/web_clockgenerator_interface.png)
 
-## Hardware build
-![Clock generator open](web_clockgenerator.JPG)
-![Clock generator](web_clockgenerator_open.JPG)
+## Features
+- Configure CLK0 frequency and drive strength from the web page, with output enable/disable.
+- Queue up to 20 characters of Morse code at the configured carrier, with optional Farnsworth spacing.
+- Pico W provides its own WPA2 access point, DHCP server, and USB CDC logs.
 
-All that is needed is to solder 4 wires as defined below.
+## Quick Start
+1. `export PICO_SDK_PATH=/path/to/pico-sdk`
+2. `cmake -S . -B build -DPICO_BOARD=pico_w -DPICO_NO_PICOTOOL=1`
+3. `cmake --build build`
+4. `./create_uf2.sh build/web_clockgen.uf2` and copy the UF2 to the Pico W in BOOTSEL mode.
+5. Join the `clockgen` SSID (`12345678`) and browse to `http://192.168.4.1`.
 
-- Raspberry Pi Pico W (3.3 V logic).
-  - Si5351A breakout (e.g. Adafruit, SparkFun) wired as:
-  - Pico GP12 → Si5351 SDA
-  - Pico GP13 → Si5351 SCL
-  - Pico 3V3 → Si5351 VCC / VIN
-  - Pico GND → Si5351 GND
-  - (optional) Tie Si5351 EN/OE high to 3.3 V.
+## Usage
+- **Clock Generator**: set frequency/drive, toggle the output, and watch status messages above the form.
+- **Morse Playback**: submit 1–20 characters, choose WPM and optional Farnsworth WPM, then Play/Stop; the panel reflects live state.
+- USB CDC logs include `[SI5351]` and `[MORSE]` entries for troubleshooting.
 
-The firmware programs CLK0 of the Si5351; route that output wherever you need the clock signal.
+## Hardware
+- Raspberry Pi Pico W
+- Si5351A breakout (SDA GP12, SCL GP13, 3V3 power, shared ground)
+- Optional printed enclosure parts in `enclosure/`
 
-## Software build
-
-1. Install the Pico SDK and point `PICO_SDK_PATH` at it.
-   ```bash
-   export PICO_SDK_PATH=/path/to/pico-sdk
-   ```
-2. Configure and build (Pico W target, skip picotool):
-   ```bash
-   mkdir -p build
-   cmake -S . -B build -DPICO_BOARD=pico_w -DPICO_NO_PICOTOOL=1
-   cmake --build build
-   ```
-3. Generate the UF2 and copy it to the Pico W (drive in BOOTSEL mode):
-   ```bash
-   ./create_uf2.sh build/web_clockgen.uf2
-   ```
-
-The firmware exposes a web control page for the Si5351A and logs activity on the USB CDC console. CLK0 output starts disabled after boot; enable it from the web UI when you are ready to transmit.
-
-```
-[20:45:31.507] Connected to /dev/ttyACM5
-USB connected
-[1291 ms] [INFO] Clock generator web firmware booting
-[1291 ms] [INFO] [SI5351] controller init requested
-[1291 ms] [SI5351] Probing device at 0x60
-[1299 ms] [SI5351] Device ready
-[1301 ms] [INFO] [SI5351] initialized (freq=1000000 Hz, drive=4 mA)
-[2141 ms] [INFO] DHCP server listening on port 67
-[2142 ms] [INFO] Webserver listening on port 80
-[2142 ms] [INFO] Access point ready: SSID=clockgen, IP=192.168.4.1
-[21059 ms] [INFO] [SI5351] CLK0 control=0x0D (requested 4 mA)
-[21059 ms] [INFO] [USER] freq=131058000 Hz, drive=4 mA
-```
-Si5351 driver adapted from [kholia/Si5351-Pi-Pico](https://github.com/kholia/Si5351-Pi-Pico) and
-references [etherkit/Si5351Arduino](https://github.com/etherkit/Si5351Arduino).
-
-## Enclosure
-
-Printable enclosure files live in `enclosure/`. The FreeCAD source (`web_signalgenerator.FCStd`) and STL exports for the body, lid, and button support a simple desktop case for the Pico W + Si5351A build.
+Si5351 driver adapted from [kholia/Si5351-Pi-Pico](https://github.com/kholia/Si5351-Pi-Pico) and [etherkit/Si5351Arduino](https://github.com/etherkit/Si5351Arduino).
