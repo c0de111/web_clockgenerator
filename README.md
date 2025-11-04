@@ -2,10 +2,11 @@
 
 Web firmware for the Si5351A clock generator on a Raspberry Pi Pico W, featuring a browser UI and Morse playback.
 
+![Clock generator web interface](images/web_clockgenerator_interface.png)
+
 <p align="center">
-  <img src="images/web_clockgenerator_interface.png" alt="Clock generator web interface" width="300">
-  <img src="images/web_clockgenerator.JPG" alt="Clock generator assembled" width="300">
-  <img src="images/web_clockgenerator_open.JPG" alt="Clock generator wiring (just four jumpers)" width="300">
+  <img src="images/web_clockgenerator.JPG" alt="Clock generator assembled" width="320">
+  <img src="images/web_clockgenerator_open.JPG" alt="Clock generator wiring (just four jumpers)" width="320">
 </p>
 
 ## Features
