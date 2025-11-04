@@ -29,6 +29,6 @@ Web firmware for the Si5351A clock generator on a Raspberry Pi Pico W, featuring
 ## Hardware
 - Raspberry Pi Pico W
 - Si5351A breakout with only four jumpers: SDA→GP12, SCL→GP13, VCC→3V3, GND→GND
-- Optional printed enclosure parts in `enclosure/`
+- Optional printed enclosure parts in [enclosure/](enclosure/) — [Body](enclosure/web_signalgenerator-Body.stl), [Lid](enclosure/web_signalgenerator-lid.stl), [Button](enclosure/web_signalgenerator-Button.stl)
 
 Si5351 driver adapted from [kholia/Si5351-Pi-Pico](https://github.com/kholia/Si5351-Pi-Pico) and [etherkit/Si5351Arduino](https://github.com/etherkit/Si5351Arduino).
