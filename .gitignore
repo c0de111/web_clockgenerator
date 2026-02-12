@@ -1,0 +1,19 @@
+# Project log
+
+# Build artifacts
+build/
+CMakeCache.txt
+cmake_install.cmake
+CMakeFiles/
+Makefile
+_deps/
+pico-sdk/
+
+# Compiled binaries and intermediates
+*.o
+*.obj
+*.elf
+*.bin
+*.hex
+*.uf2
+*.map

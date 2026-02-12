@@ -1,0 +1,5 @@
+#pragma once
+
+#define BUILD_GIT_COMMIT "@GIT_COMMIT@"
+#define BUILD_COMMIT_DATE "@GIT_DATE@"
+#define BUILD_COMPILED_AT "@BUILD_TIME@"
