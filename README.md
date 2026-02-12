@@ -15,7 +15,7 @@ Web firmware for the Si5351A clock generator on a Raspberry Pi Pico W, featuring
 - Pico W provides its own WPA2 access point, DHCP server, and USB CDC logs.
 
 ## Quick Start
-1. Download uf2-file release file and copy to Pico W
+1. Download uf2 release file and copy to Pico W [Download latest UF2](https://github.com/OWNER/REPO/releases/latest/download/web_clockgen.uf2)
 2. Join the `clockgen` SSID (`12345678`) and browse to `http://192.168.4.1`.
 
 ## Build
@@ -28,7 +28,7 @@ Web firmware for the Si5351A clock generator on a Raspberry Pi Pico W, featuring
 ## Usage
 - **Clock Generator**: set frequency/drive, toggle the output, and watch status messages above the form.
 - **Morse Playback**: submit 1–20 characters, choose WPM and optional Farnsworth WPM, then Play/Stop; the panel reflects live state.
-- USB CDC logs include `[SI5351]` and `[MORSE]` entries for troubleshooting.
+- Logs available via USB (terminal) 
 
 ## Hardware
 - Raspberry Pi Pico W
