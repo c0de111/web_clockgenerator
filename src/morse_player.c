@@ -44,18 +44,15 @@ typedef struct {
 } morse_map_entry_t;
 
 static const morse_map_entry_t k_morse_map[] = {
-    {'A', ".-"},    {'B', "-..."},  {'C', "-.-."},  {'D', "-.."},   {'E', "."},
-    {'F', "..-."},  {'G', "--."},   {'H', "...."},  {'I', ".."},    {'J', ".---"},
-    {'K', "-.-"},   {'L', ".-.."},  {'M', "--"},    {'N', "-."},    {'O', "---"},
-    {'P', ".--."},  {'Q', "--.-"},  {'R', ".-."},   {'S', "..."},   {'T', "-"},
-    {'U', "..-"},   {'V', "...-"},  {'W', ".--"},   {'X', "-..-"},  {'Y', "-.--"},
-    {'Z', "--.."},
-    {'0', "-----"}, {'1', ".----"}, {'2', "..---"}, {'3', "...--"}, {'4', "....-"},
-    {'5', "....."}, {'6', "-...."}, {'7', "--..."}, {'8', "---.."}, {'9', "----."},
-    {'.', ".-.-.-"}, {',', "--..--"}, {'?', "..--.."}, {'/', "-..-."},
-    {'=', "-...-"},  {'+', ".-.-."},  {'-', "-....-"}, {'!', "-.-.--"},
-    {'@', ".--.-."}
-};
+    {'A', ".-"},    {'B', "-..."},   {'C', "-.-."},   {'D', "-.."},    {'E', "."},
+    {'F', "..-."},  {'G', "--."},    {'H', "...."},   {'I', ".."},     {'J', ".---"},
+    {'K', "-.-"},   {'L', ".-.."},   {'M', "--"},     {'N', "-."},     {'O', "---"},
+    {'P', ".--."},  {'Q', "--.-"},   {'R', ".-."},    {'S', "..."},    {'T', "-"},
+    {'U', "..-"},   {'V', "...-"},   {'W', ".--"},    {'X', "-..-"},   {'Y', "-.--"},
+    {'Z', "--.."},  {'0', "-----"},  {'1', ".----"},  {'2', "..---"},  {'3', "...--"},
+    {'4', "....-"}, {'5', "....."},  {'6', "-...."},  {'7', "--..."},  {'8', "---.."},
+    {'9', "----."}, {'.', ".-.-.-"}, {',', "--..--"}, {'?', "..--.."}, {'/', "-..-."},
+    {'=', "-...-"}, {'+', ".-.-."},  {'-', "-....-"}, {'!', "-.-.--"}, {'@', ".--.-."}};
 
 static morse_state_t g_morse = {
     .playing = false,
@@ -104,8 +101,7 @@ static bool build_events(const morse_char_entry_t *entries, uint8_t count) {
         }
         for (uint8_t j = 0; j < entry->length; ++j) {
             if (g_morse.event_count >= MORSE_MAX_EVENTS - 1) {
-                snprintf(g_morse.error_msg, sizeof(g_morse.error_msg),
-                         "Message too long");
+                snprintf(g_morse.error_msg, sizeof(g_morse.error_msg), "Message too long");
                 return false;
             }
             bool is_dash = (entry->pattern[j] == '-');
@@ -139,8 +135,8 @@ bool morse_start(const char *text, uint8_t len, uint16_t wpm, int16_t farnsworth
         return false;
     }
     if (len == 0 || len > MORSE_MAX_CHARS) {
-        snprintf(g_morse.error_msg, sizeof(g_morse.error_msg),
-                 "Text must be 1-%u characters", MORSE_MAX_CHARS);
+        snprintf(g_morse.error_msg, sizeof(g_morse.error_msg), "Text must be 1-%u characters",
+                 MORSE_MAX_CHARS);
         return false;
     }
     if (wpm < 1 || wpm > 1000) {
@@ -149,8 +145,7 @@ bool morse_start(const char *text, uint8_t len, uint16_t wpm, int16_t farnsworth
     }
     if (farnsworth_wpm >= 0) {
         if (farnsworth_wpm < 1 || (uint16_t)farnsworth_wpm > wpm) {
-            snprintf(g_morse.error_msg, sizeof(g_morse.error_msg),
-                     "Farnsworth must be 1-%u", wpm);
+            snprintf(g_morse.error_msg, sizeof(g_morse.error_msg), "Farnsworth must be 1-%u", wpm);
             return false;
         }
     }
@@ -159,8 +154,8 @@ bool morse_start(const char *text, uint8_t len, uint16_t wpm, int16_t farnsworth
 
     size_t input_len = strnlen(text, len);
     if (input_len == 0) {
-        snprintf(g_morse.error_msg, sizeof(g_morse.error_msg),
-                 "Text must be 1-%u characters", MORSE_MAX_CHARS);
+        snprintf(g_morse.error_msg, sizeof(g_morse.error_msg), "Text must be 1-%u characters",
+                 MORSE_MAX_CHARS);
         return false;
     }
 
@@ -169,7 +164,8 @@ bool morse_start(const char *text, uint8_t len, uint16_t wpm, int16_t farnsworth
     g_morse.last_text[copy_len] = '\0';
 
     g_morse.last_wpm = wpm;
-    g_morse.last_fwpm = (farnsworth_wpm >= 1 && (uint16_t)farnsworth_wpm <= wpm) ? farnsworth_wpm : -1;
+    g_morse.last_fwpm =
+        (farnsworth_wpm >= 1 && (uint16_t)farnsworth_wpm <= wpm) ? farnsworth_wpm : -1;
 
     morse_char_entry_t entries[MORSE_MAX_CHARS] = {0};
     uint8_t entry_count = 0;
@@ -205,13 +201,12 @@ bool morse_start(const char *text, uint8_t len, uint16_t wpm, int16_t farnsworth
     }
 
     if (invalid_count > 0) {
-        snprintf(g_morse.error_msg, sizeof(g_morse.error_msg),
-                 "Invalid characters: %s", invalid_chars);
+        snprintf(g_morse.error_msg, sizeof(g_morse.error_msg), "Invalid characters: %s",
+                 invalid_chars);
         return false;
     }
     if (entry_count == 0) {
-        snprintf(g_morse.error_msg, sizeof(g_morse.error_msg),
-                 "Message has no valid characters");
+        snprintf(g_morse.error_msg, sizeof(g_morse.error_msg), "Message has no valid characters");
         return false;
     }
 
@@ -236,8 +231,7 @@ bool morse_start(const char *text, uint8_t len, uint16_t wpm, int16_t farnsworth
     }
 
     if (!signal_controller_key(false)) {
-        snprintf(g_morse.error_msg, sizeof(g_morse.error_msg),
-                 "Output not initialized");
+        snprintf(g_morse.error_msg, sizeof(g_morse.error_msg), "Output not initialized");
         return false;
     }
 
@@ -262,11 +256,8 @@ bool morse_start(const char *text, uint8_t len, uint16_t wpm, int16_t farnsworth
         snprintf(fwpm_buf, sizeof(fwpm_buf), "off");
     }
 
-    log_info("[MORSE] start text=\"%s\" wpm=%u fwpm=%s total_ms=%u",
-             g_morse.last_text,
-             (unsigned)wpm,
-             fwpm_buf,
-             (unsigned)total_ms);
+    log_info("[MORSE] start text=\"%s\" wpm=%u fwpm=%s total_ms=%u", g_morse.last_text,
+             (unsigned)wpm, fwpm_buf, (unsigned)total_ms);
     return true;
 }
 
@@ -279,9 +270,7 @@ void morse_stop(void) {
     g_morse.next_deadline = get_absolute_time();
 }
 
-bool morse_is_playing(void) {
-    return g_morse.playing;
-}
+bool morse_is_playing(void) { return g_morse.playing; }
 
 void morse_tick(void) {
     if (!g_morse.playing) {
@@ -316,21 +305,20 @@ void morse_tick(void) {
 
 const char *morse_status_text(void) {
     switch (g_morse.status) {
-        case MORSE_STATUS_PLAYING:
-            return "Playing...";
-        case MORSE_STATUS_STOPPED:
-            return "Stopped";
-        case MORSE_STATUS_IDLE:
-        default:
-            return "Idle";
+    case MORSE_STATUS_PLAYING:
+        return "Playing...";
+    case MORSE_STATUS_STOPPED:
+        return "Stopped";
+    case MORSE_STATUS_IDLE:
+    default:
+        return "Idle";
     }
 }
 
-const char *morse_last_error(void) {
-    return g_morse.error_msg;
-}
+const char *morse_last_error(void) { return g_morse.error_msg; }
 
-void morse_get_form_defaults(char *text_out, size_t text_len, uint16_t *wpm_out, int16_t *fwpm_out) {
+void morse_get_form_defaults(char *text_out, size_t text_len, uint16_t *wpm_out,
+                             int16_t *fwpm_out) {
     if (text_out && text_len > 0) {
         snprintf(text_out, text_len, "%s", g_morse.last_text);
     }

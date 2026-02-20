@@ -1,7 +1,7 @@
 #include "debug.h"
 
-#include <stdio.h>
 #include <stdarg.h>
+#include <stdio.h>
 
 #include "pico/stdlib.h"
 
@@ -14,9 +14,7 @@ void init_debug(void) {
     current_debug_mode = DEBUG_NONE;
 }
 
-void set_debug_mode(DebugMode mode) {
-    current_debug_mode = mode;
-}
+void set_debug_mode(DebugMode mode) { current_debug_mode = mode; }
 
 static void append_to_buffer(const char *timestamp, const char *color, const char *message) {
     if (debug_buffer_index >= DEBUG_BUFFER_SIZE) {
@@ -24,23 +22,20 @@ static void append_to_buffer(const char *timestamp, const char *color, const cha
     }
 
     int written = snprintf(&debug_buffer[debug_buffer_index],
-                           DEBUG_BUFFER_SIZE - debug_buffer_index,
-                           "%s", timestamp);
+                           DEBUG_BUFFER_SIZE - debug_buffer_index, "%s", timestamp);
     if (written > 0) {
         debug_buffer_index += (size_t)written;
     }
 
     if (color && *color) {
         written = snprintf(&debug_buffer[debug_buffer_index],
-                           DEBUG_BUFFER_SIZE - debug_buffer_index,
-                           "%s", color);
+                           DEBUG_BUFFER_SIZE - debug_buffer_index, "%s", color);
         if (written > 0) {
             debug_buffer_index += (size_t)written;
         }
     }
 
-    written = snprintf(&debug_buffer[debug_buffer_index],
-                       DEBUG_BUFFER_SIZE - debug_buffer_index,
+    written = snprintf(&debug_buffer[debug_buffer_index], DEBUG_BUFFER_SIZE - debug_buffer_index,
                        "%s", message);
     if (written > 0) {
         debug_buffer_index += (size_t)written;
@@ -48,8 +43,7 @@ static void append_to_buffer(const char *timestamp, const char *color, const cha
 
     if (color && *color) {
         written = snprintf(&debug_buffer[debug_buffer_index],
-                           DEBUG_BUFFER_SIZE - debug_buffer_index,
-                           "%s", COLOR_RESET);
+                           DEBUG_BUFFER_SIZE - debug_buffer_index, "%s", COLOR_RESET);
         if (written > 0) {
             debug_buffer_index += (size_t)written;
         }
@@ -65,11 +59,12 @@ static void format_timestamp(char *out, size_t out_len) {
     if (timestamp_us < 10000) {
         snprintf(out, out_len, "\033[1m[%llu us]\033[0m ", (unsigned long long)timestamp_us);
     } else {
-        snprintf(out, out_len, "\033[1m[%llu ms]\033[0m ", (unsigned long long)(timestamp_us / 1000));
+        snprintf(out, out_len, "\033[1m[%llu ms]\033[0m ",
+                 (unsigned long long)(timestamp_us / 1000));
     }
 }
 
-void debug_log(const char* format, ...) {
+void debug_log(const char *format, ...) {
     va_list args;
     va_start(args, format);
 
@@ -91,7 +86,7 @@ void debug_log(const char* format, ...) {
     va_end(args);
 }
 
-void debug_log_with_color(const char* color_code, const char* format, ...) {
+void debug_log_with_color(const char *color_code, const char *format, ...) {
     va_list args;
     va_start(args, format);
 

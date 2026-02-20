@@ -1,10 +1,10 @@
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include <stdint.h>
 
-#include "pico/stdlib.h"
 #include "pico/cyw43_arch.h"
 #include "pico/stdio_usb.h"
+#include "pico/stdlib.h"
 
 #include "lwip/ip4_addr.h"
 #include "lwip/netif.h"
@@ -12,72 +12,58 @@
 #include "lwip/udp.h"
 
 #include "logging.h"
-#include "webserver.h"
-#include "signal_controller.h"
 #include "morse_player.h"
+#include "signal_controller.h"
+#include "webserver.h"
 
 static void start_dhcp_server(void);
-static void dhcp_recv_cb(void *arg, struct udp_pcb *pcb, struct pbuf *p,
-                         const ip_addr_t *addr, u16_t port);
+static void dhcp_recv_cb(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *addr,
+                         u16_t port);
 static bool wait_for_usb_connection(uint32_t timeout_ms);
 
 static const uint8_t dhcp_offer_template[] = {
-    0x02, 0x01, 0x06, 0x00,                  // BOOTP: op, htype, hlen, hops
-    0x00, 0x00, 0x00, 0x00,                  // XID (Transaction ID)
-    0x00, 0x00, 0x00, 0x00,                  // SECS, FLAGS
-    0, 0, 0, 0,                              // CIADDR (Client IP)
-    192, 168, 4, 100,                        // YIADDR (Your IP)
-    192, 168, 4, 1,                          // SIADDR (Server IP)
-    0x00, 0x00, 0x00, 0x00,                  // GIADDR (Gateway IP)
+    0x02, 0x01, 0x06, 0x00, // BOOTP: op, htype, hlen, hops
+    0x00, 0x00, 0x00, 0x00, // XID (Transaction ID)
+    0x00, 0x00, 0x00, 0x00, // SECS, FLAGS
+    0, 0, 0, 0,             // CIADDR (Client IP)
+    192, 168, 4, 100,       // YIADDR (Your IP)
+    192, 168, 4, 1,         // SIADDR (Server IP)
+    0x00, 0x00, 0x00, 0x00, // GIADDR (Gateway IP)
     // CHADDR (Client HW addr)
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     // CHADDR padding
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     // SNAME (64 bytes)
-    [44] = 0,
-    [107] = 0,
+    [44] = 0, [107] = 0,
     // FILE (128 bytes)
-    [108] = 0,
-    [235] = 0,
+    [108] = 0, [235] = 0,
     // MAGIC COOKIE
     99, 130, 83, 99,
     // DHCP Options
-    53, 1, 2,                                // Offer
-    54, 4, 192, 168, 4, 1,                   // Server Identifier
-    51, 4, 0x00, 0x01, 0x51, 0x80,           // Lease time = 86400
-    58, 4, 0x00, 0x00, 0x01, 0x2C,           // Renewal (T1) = 300s
-    59, 4, 0x00, 0x00, 0x01, 0xE0,           // Rebinding (T2) = 480s
-    1, 4, 255, 255, 255, 0,                  // Subnet mask
-    3, 4, 192, 168, 4, 1,                    // Router
-    6, 4, 192, 168, 4, 1,                    // DNS
-    255
-};
+    53, 1, 2,                      // Offer
+    54, 4, 192, 168, 4, 1,         // Server Identifier
+    51, 4, 0x00, 0x01, 0x51, 0x80, // Lease time = 86400
+    58, 4, 0x00, 0x00, 0x01, 0x2C, // Renewal (T1) = 300s
+    59, 4, 0x00, 0x00, 0x01, 0xE0, // Rebinding (T2) = 480s
+    1, 4, 255, 255, 255, 0,        // Subnet mask
+    3, 4, 192, 168, 4, 1,          // Router
+    6, 4, 192, 168, 4, 1,          // DNS
+    255};
 
-static const uint8_t dhcp_ack_template[] = {
-    0x02, 0x01, 0x06, 0x00,
-    0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00,
-    0, 0, 0, 0,
-    192, 168, 4, 100,
-    192, 168, 4, 1,
-    0x00, 0x00, 0x00, 0x00,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    [44] = 0,
-    [107] = 0,
-    [108] = 0,
-    [235] = 0,
-    99, 130, 83, 99,
-    53, 1, 5,                                // ACK
-    54, 4, 192, 168, 4, 1,
-    51, 4, 0x00, 0x01, 0x51, 0x80,
-    58, 4, 0x00, 0x00, 0x01, 0x2C,
-    59, 4, 0x00, 0x00, 0x01, 0xE0,
-    1, 4, 255, 255, 255, 0,
-    3, 4, 192, 168, 4, 1,
-    6, 4, 192, 168, 4, 1,
-    255
-};
+static const uint8_t
+    dhcp_ack_template[] =
+        {
+            0x02, 0x01, 0x06, 0x00, 0x00, 0x00,     0x00,      0x00,      0x00,      0x00, 0x00,
+            0x00, 0,    0,    0,    0,    192,      168,       4,         100,       192,  168,
+            4,    1,    0x00, 0x00, 0x00, 0x00,     0,         0,         0,         0,    0,
+            0,    0,    0,    0,    0,    0,        0,         0,         0,         0,    0,
+            0,    0,    0,    0,    0,    0,        0,         0,         0,         0,    0,
+            0,    0,    0,    0,    0,    [44] = 0, [107] = 0, [108] = 0, [235] = 0, 99,   130,
+            83,   99,   53,   1,    5, // ACK
+            54,   4,    192,  168,  4,    1,        51,        4,         0x00,      0x01, 0x51,
+            0x80, 58,   4,    0x00, 0x00, 0x01,     0x2C,      59,        4,         0x00, 0x00,
+            0x01, 0xE0, 1,    4,    255,  255,      255,       0,         3,         4,    192,
+            168,  4,    1,    6,    4,    192,      168,       4,         1,         255};
 
 int main(void) {
     stdio_init_all();
@@ -157,8 +143,8 @@ static void start_dhcp_server(void) {
     log_info("DHCP server listening on port 67");
 }
 
-static void dhcp_recv_cb(void *arg, struct udp_pcb *pcb, struct pbuf *p,
-                         const ip_addr_t *addr, u16_t port) {
+static void dhcp_recv_cb(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *addr,
+                         u16_t port) {
     (void)arg;
     if (!p || p->len < 240) {
         if (p) {
@@ -181,23 +167,23 @@ static void dhcp_recv_cb(void *arg, struct udp_pcb *pcb, struct pbuf *p,
     size_t template_len = 0;
 
     switch (msg_type) {
-        case 1: // Discover
-            template = dhcp_offer_template;
-            template_len = sizeof(dhcp_offer_template);
-            break;
-        case 3: // Request
-            template = dhcp_ack_template;
-            template_len = sizeof(dhcp_ack_template);
-            break;
-        default:
-            pbuf_free(p);
-            return;
+    case 1: // Discover
+        template = dhcp_offer_template;
+        template_len = sizeof(dhcp_offer_template);
+        break;
+    case 3: // Request
+        template = dhcp_ack_template;
+        template_len = sizeof(dhcp_ack_template);
+        break;
+    default:
+        pbuf_free(p);
+        return;
     }
 
     uint8_t response[300] = {0};
     memcpy(response, template, template_len);
-    memcpy(response + 4, request + 4, 4);     // XID
-    memcpy(response + 28, request + 28, 16);  // CHADDR
+    memcpy(response + 4, request + 4, 4);    // XID
+    memcpy(response + 28, request + 28, 16); // CHADDR
 
     struct pbuf *resp_buf = pbuf_alloc(PBUF_TRANSPORT, template_len, PBUF_RAM);
     if (!resp_buf) {

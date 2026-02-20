@@ -1,7 +1,7 @@
 #include "signal_controller.h"
 
-#include "si5351.h"
 #include "logging.h"
+#include "si5351.h"
 
 static bool g_initialized = false;
 static signal_state_t g_state = {
@@ -12,11 +12,16 @@ static signal_state_t g_state = {
 
 static enum si5351_drive map_drive(uint8_t drive_ma) {
     switch (drive_ma) {
-        case 2: return SI5351_DRIVE_2MA;
-        case 4: return SI5351_DRIVE_4MA;
-        case 6: return SI5351_DRIVE_6MA;
-        case 8: return SI5351_DRIVE_8MA;
-        default: return SI5351_DRIVE_4MA;
+    case 2:
+        return SI5351_DRIVE_2MA;
+    case 4:
+        return SI5351_DRIVE_4MA;
+    case 6:
+        return SI5351_DRIVE_6MA;
+    case 8:
+        return SI5351_DRIVE_8MA;
+    default:
+        return SI5351_DRIVE_4MA;
     }
 }
 
@@ -63,8 +68,7 @@ bool signal_controller_set(uint64_t frequency_hz, uint8_t drive_strength_ma) {
     if (freq_changed || drive_changed) {
         const uint64_t scaled = frequency_hz * SI5351_FREQ_MULT;
         if (si5351_set_freq(scaled, SI5351_CLK0) != 0) {
-            log_error("[SI5351] failed to set frequency %llu Hz",
-                      (unsigned long long)frequency_hz);
+            log_error("[SI5351] failed to set frequency %llu Hz", (unsigned long long)frequency_hz);
             return false;
         }
 
@@ -76,8 +80,7 @@ bool signal_controller_set(uint64_t frequency_hz, uint8_t drive_strength_ma) {
         g_state.frequency_hz = frequency_hz;
         g_state.drive_ma = drive;
 
-        log_info("[USER] freq=%llu Hz, drive=%u mA",
-                 (unsigned long long)frequency_hz, drive);
+        log_info("[USER] freq=%llu Hz, drive=%u mA", (unsigned long long)frequency_hz, drive);
     }
     return true;
 }
@@ -110,6 +113,4 @@ void signal_controller_restore_output(void) {
     si5351_output_enable(SI5351_CLK0, g_state.output_enabled ? 1 : 0);
 }
 
-signal_state_t signal_controller_get_state(void) {
-    return g_state;
-}
+signal_state_t signal_controller_get_state(void) { return g_state; }

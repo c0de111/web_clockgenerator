@@ -1,18 +1,18 @@
 #include "webserver.h"
 
+#include <ctype.h>
+#include <math.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <math.h>
-#include <ctype.h>
 
 #include "logging.h"
+#include "morse_player.h"
+#include "signal_controller.h"
 #include "webserver_pages.h"
 #include "webserver_utils.h"
-#include "signal_controller.h"
-#include "morse_player.h"
 
 #include "lwip/tcp.h"
 
@@ -249,8 +249,8 @@ static void respond_with_form(struct tcp_pcb *pcb, web_connection_t *state) {
 
     webserver_build_landing_page(page, sizeof(page), current.frequency_hz, current.drive_ma,
                                  current.output_enabled, g_status_message, g_status_is_error,
-                                 morse_text, morse_wpm, morse_fwpm,
-                                 morse_is_playing(), morse_status_text(), g_morse_hold_active);
+                                 morse_text, morse_wpm, morse_fwpm, morse_is_playing(),
+                                 morse_status_text(), g_morse_hold_active);
 
     if (webserver_send_response(pcb, page) == ERR_OK) {
         state->responded = true;
@@ -367,8 +367,8 @@ static void handle_form_submission(const char *body) {
 
     char status[128];
     if (freq_changed) {
-        snprintf(status, sizeof(status), "Applied %llu Hz @ %u mA",
-                 (unsigned long long)freq, (unsigned)drive_val);
+        snprintf(status, sizeof(status), "Applied %llu Hz @ %u mA", (unsigned long long)freq,
+                 (unsigned)drive_val);
     } else {
         strcpy(status, "No parameter change");
     }
@@ -458,7 +458,8 @@ static void handle_morse_hold(const char *body) {
                 signal_controller_enable_output(false);
             }
             if (g_status_message[0]) {
-                snprintf(g_status_prev_message, sizeof(g_status_prev_message), "%s", g_status_message);
+                snprintf(g_status_prev_message, sizeof(g_status_prev_message), "%s",
+                         g_status_message);
                 g_status_prev_is_error = g_status_is_error;
                 g_status_prev_valid = true;
             } else {
@@ -499,14 +500,13 @@ static void respond_morse_status(struct tcp_pcb *pcb, web_connection_t *state) {
     signal_state_t sig_state = signal_controller_get_state();
 
     char body[192];
-    int body_len = snprintf(body, sizeof(body),
-                            "{\"playing\":%s,\"status\":\"%s\",\"hold\":%s,\"output_enabled\":%s}",
-                            playing ? "true" : "false",
-                            status,
-                            g_morse_hold_active ? "true" : "false",
-                            sig_state.output_enabled ? "true" : "false");
+    int body_len = snprintf(
+        body, sizeof(body), "{\"playing\":%s,\"status\":\"%s\",\"hold\":%s,\"output_enabled\":%s}",
+        playing ? "true" : "false", status, g_morse_hold_active ? "true" : "false",
+        sig_state.output_enabled ? "true" : "false");
     if (body_len < 0 || body_len >= (int)sizeof(body)) {
-        const char fallback[] = "{\"playing\":false,\"status\":\"Idle\",\"hold\":false,\"output_enabled\":false}";
+        const char fallback[] =
+            "{\"playing\":false,\"status\":\"Idle\",\"hold\":false,\"output_enabled\":false}";
         memcpy(body, fallback, sizeof(fallback));
         body_len = (int)sizeof(fallback) - 1;
     }

@@ -5,17 +5,12 @@
 
 #define DEBUG_BUFFER_SIZE 4096
 
-typedef enum {
-    DEBUG_NONE,
-    DEBUG_REALTIME,
-    DEBUG_BUFFERED,
-    DEBUG_BOTH
-} DebugMode;
+typedef enum { DEBUG_NONE, DEBUG_REALTIME, DEBUG_BUFFERED, DEBUG_BOTH } DebugMode;
 
 void init_debug(void);
 void set_debug_mode(DebugMode mode);
-void debug_log(const char* format, ...);
-void debug_log_with_color(const char* color_code, const char* format, ...);
+void debug_log(const char *format, ...);
+void debug_log_with_color(const char *color_code, const char *format, ...);
 void transmit_debug_logs(void);
 
 #define COLOR_RESET "\033[0m"
