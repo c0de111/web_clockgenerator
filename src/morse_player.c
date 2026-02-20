@@ -136,7 +136,7 @@ bool morse_start(const char *text, uint8_t len, uint16_t wpm, int16_t farnsworth
     }
     if (len == 0 || len > MORSE_MAX_CHARS) {
         snprintf(g_morse.error_msg, sizeof(g_morse.error_msg), "Text must be 1-%u characters",
-                 MORSE_MAX_CHARS);
+                 (unsigned)MORSE_MAX_CHARS);
         return false;
     }
     if (wpm < 1 || wpm > 1000) {
@@ -145,7 +145,8 @@ bool morse_start(const char *text, uint8_t len, uint16_t wpm, int16_t farnsworth
     }
     if (farnsworth_wpm >= 0) {
         if (farnsworth_wpm < 1 || (uint16_t)farnsworth_wpm > wpm) {
-            snprintf(g_morse.error_msg, sizeof(g_morse.error_msg), "Farnsworth must be 1-%u", wpm);
+            snprintf(g_morse.error_msg, sizeof(g_morse.error_msg), "Farnsworth must be 1-%u",
+                     (unsigned)wpm);
             return false;
         }
     }
@@ -155,7 +156,7 @@ bool morse_start(const char *text, uint8_t len, uint16_t wpm, int16_t farnsworth
     size_t input_len = strnlen(text, len);
     if (input_len == 0) {
         snprintf(g_morse.error_msg, sizeof(g_morse.error_msg), "Text must be 1-%u characters",
-                 MORSE_MAX_CHARS);
+                 (unsigned)MORSE_MAX_CHARS);
         return false;
     }
 
@@ -164,8 +165,7 @@ bool morse_start(const char *text, uint8_t len, uint16_t wpm, int16_t farnsworth
     g_morse.last_text[copy_len] = '\0';
 
     g_morse.last_wpm = wpm;
-    g_morse.last_fwpm =
-        (farnsworth_wpm >= 1 && (uint16_t)farnsworth_wpm <= wpm) ? farnsworth_wpm : -1;
+    g_morse.last_fwpm = farnsworth_wpm;
 
     morse_char_entry_t entries[MORSE_MAX_CHARS] = {0};
     uint8_t entry_count = 0;

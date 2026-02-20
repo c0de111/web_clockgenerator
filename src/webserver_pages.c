@@ -123,7 +123,7 @@ void webserver_build_landing_page(char *buffer, size_t max_len, uint64_t frequen
         "body{font-family:sans-serif;background:#f5f7fa;margin:0;}"
         ".page{display:flex;justify-content:center;align-items:flex-start;padding:2em;}"
         ".card{background:#fff;border-radius:12px;box-shadow:0 8px 24px "
-        "rgba(15,23,42,0.15);padding:2em;max-width:460px;width:100%;}"
+        "rgba(15,23,42,0.15);padding:2em;max-width:460px;width:100%%;}"
         ".card h1{text-align:center;margin:0;color:#1f2937;}"
         ".card form{display:flex;flex-direction:column;gap:1.1em;margin-top:1.2em;}"
         ".card label{display:flex;flex-direction:column;font-weight:600;color:#374151;gap:0.45em;}"

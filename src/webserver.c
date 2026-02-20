@@ -391,7 +391,8 @@ static void handle_morse_submission(const char *body) {
     }
     if (text_len > MORSE_MAX_CHARS) {
         char msg[64];
-        snprintf(msg, sizeof(msg), "Error: text must be %u characters or fewer", MORSE_MAX_CHARS);
+        snprintf(msg, sizeof(msg), "Error: text must be %u characters or fewer",
+                 (unsigned)MORSE_MAX_CHARS);
         webserver_set_status(msg, true);
         return;
     }
