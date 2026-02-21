@@ -111,6 +111,7 @@ int main(void) {
     while (true) {
         cyw43_arch_poll();
         morse_tick();
+        logging_poll();
         sleep_ms(5);
     }
 }

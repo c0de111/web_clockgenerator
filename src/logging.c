@@ -11,6 +11,8 @@ void logging_init(void) {
     set_debug_mode(DEBUG_REALTIME);
 }
 
+void logging_poll(void) { transmit_debug_logs(); }
+
 static void log_vinternal(const char *label, const char *color, const char *fmt, va_list args) {
     char message[256];
     vsnprintf(message, sizeof(message), fmt, args);

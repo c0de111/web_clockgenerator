@@ -1,7 +1,6 @@
 #include "webserver.h"
 
 #include <ctype.h>
-#include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -33,24 +32,8 @@ static void handle_morse_hold(const char *body);
 static void respond_morse_status(struct tcp_pcb *pcb, web_connection_t *state);
 static uint64_t clamp_frequency(uint64_t freq);
 static bool parse_uint64(const char *value, uint64_t *out);
-static bool parse_double(const char *value, double *out);
 static bool extract_form_value(const char *body, const char *key, char *out, size_t out_len);
 static int hex_digit_value(char c);
-static void format_step_text(double step, char *buf, size_t len) {
-    double rounded = round(step);
-    if (fabs(step - rounded) < 1e-6) {
-        snprintf(buf, len, "%.0f", rounded);
-    } else {
-        snprintf(buf, len, "%.6f", step);
-        size_t n = strlen(buf);
-        while (n > 0 && buf[n - 1] == '0') {
-            buf[--n] = '\0';
-        }
-        if (n > 0 && buf[n - 1] == '.') {
-            buf[--n] = '\0';
-        }
-    }
-}
 
 static int hex_digit_value(char c) {
     if (c >= '0' && c <= '9') {
