@@ -3,6 +3,12 @@
 #include "logging.h"
 #include "si5351.h"
 
+typedef struct {
+    uint64_t frequency_hz;
+    uint8_t drive_ma;
+    bool output_enabled;
+} signal_state_t;
+
 static bool g_initialized = false;
 static signal_state_t g_state = {
     .frequency_hz = 1008000,
@@ -113,4 +119,8 @@ void signal_controller_restore_output(void) {
     si5351_output_enable(SI5351_CLK0, g_state.output_enabled ? 1 : 0);
 }
 
-signal_state_t signal_controller_get_state(void) { return g_state; }
+uint64_t signal_controller_get_frequency_hz(void) { return g_state.frequency_hz; }
+
+uint8_t signal_controller_get_drive_ma(void) { return g_state.drive_ma; }
+
+bool signal_controller_is_output_enabled(void) { return g_state.output_enabled; }

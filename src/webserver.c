@@ -224,16 +224,18 @@ static err_t webserver_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_
 
 static void respond_with_form(struct tcp_pcb *pcb, web_connection_t *state) {
     char page[16384];
-    signal_state_t current = signal_controller_get_state();
+    uint64_t current_frequency = signal_controller_get_frequency_hz();
+    uint8_t current_drive = signal_controller_get_drive_ma();
+    bool current_output = signal_controller_is_output_enabled();
     char morse_text[MORSE_MAX_CHARS + 1] = {0};
     uint16_t morse_wpm = 0;
     int16_t morse_fwpm = -1;
     morse_get_form_defaults(morse_text, sizeof(morse_text), &morse_wpm, &morse_fwpm);
 
-    webserver_build_landing_page(page, sizeof(page), current.frequency_hz, current.drive_ma,
-                                 current.output_enabled, g_status_message, g_status_is_error,
-                                 morse_text, morse_wpm, morse_fwpm, morse_is_playing(),
-                                 morse_status_text(), g_morse_hold_active);
+    webserver_build_landing_page(page, sizeof(page), current_frequency, current_drive,
+                                 current_output, g_status_message, g_status_is_error, morse_text,
+                                 morse_wpm, morse_fwpm, morse_is_playing(), morse_status_text(),
+                                 g_morse_hold_active);
 
     if (webserver_send_response(pcb, page) == ERR_OK) {
         state->responded = true;
@@ -303,8 +305,7 @@ static void handle_form_submission(const char *body) {
             webserver_set_status("Output locked for Morse", true);
             return;
         }
-        signal_state_t current = signal_controller_get_state();
-        bool desired = !current.output_enabled;
+        bool desired = !signal_controller_is_output_enabled();
         if (signal_controller_enable_output(desired)) {
             webserver_set_status(desired ? "Output enabled" : "Output disabled", false);
         } else {
@@ -319,7 +320,8 @@ static void handle_form_submission(const char *body) {
     bool freq_found = extract_form_value(body, "frequency=", freq_buf, sizeof(freq_buf));
     bool drive_found = extract_form_value(body, "drive=", drive_buf, sizeof(drive_buf));
 
-    signal_state_t previous = signal_controller_get_state();
+    uint64_t previous_frequency = signal_controller_get_frequency_hz();
+    uint8_t previous_drive = signal_controller_get_drive_ma();
 
     uint64_t freq = 0;
     uint64_t drive_val = 0;
@@ -346,7 +348,7 @@ static void handle_form_submission(const char *body) {
         return;
     }
 
-    bool freq_changed = (previous.frequency_hz != freq) || (previous.drive_ma != drive_val);
+    bool freq_changed = (previous_frequency != freq) || (previous_drive != drive_val);
 
     char status[128];
     if (freq_changed) {
@@ -436,9 +438,9 @@ static void handle_morse_hold(const char *body) {
 
     if (activate) {
         if (!g_morse_hold_active) {
-            signal_state_t state = signal_controller_get_state();
-            g_morse_hold_prev_enabled = state.output_enabled;
-            if (state.output_enabled) {
+            bool output_enabled = signal_controller_is_output_enabled();
+            g_morse_hold_prev_enabled = output_enabled;
+            if (output_enabled) {
                 signal_controller_enable_output(false);
             }
             if (g_status_message[0]) {
@@ -481,13 +483,13 @@ static void respond_morse_status(struct tcp_pcb *pcb, web_connection_t *state) {
         status = "Idle";
     }
 
-    signal_state_t sig_state = signal_controller_get_state();
+    bool output_enabled = signal_controller_is_output_enabled();
 
     char body[192];
     int body_len = snprintf(
         body, sizeof(body), "{\"playing\":%s,\"status\":\"%s\",\"hold\":%s,\"output_enabled\":%s}",
         playing ? "true" : "false", status, g_morse_hold_active ? "true" : "false",
-        sig_state.output_enabled ? "true" : "false");
+        output_enabled ? "true" : "false");
     if (body_len < 0 || body_len >= (int)sizeof(body)) {
         const char fallback[] =
             "{\"playing\":false,\"status\":\"Idle\",\"hold\":false,\"output_enabled\":false}";

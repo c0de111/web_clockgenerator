@@ -214,7 +214,7 @@ bool morse_start(const char *text, uint8_t len, uint16_t wpm, int16_t farnsworth
     if (g_morse.unit_ms == 0) {
         g_morse.unit_ms = 1;
     }
-    int8_t effective_fw = -1;
+    int16_t effective_fw = -1;
     if (farnsworth_wpm >= 1 && (uint16_t)farnsworth_wpm < wpm) {
         g_morse.gap_unit_ms = (uint16_t)(1200u / (uint16_t)farnsworth_wpm);
         effective_fw = farnsworth_wpm;
